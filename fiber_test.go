@@ -1,11 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	_ "embed"
 
 	"github.com/stretchr/testify/assert"
 
@@ -105,4 +109,38 @@ func TestFormReq(t *testing.T) {
 	bytes, err := io.ReadAll(response.Body)
 	assert.Nil(t, err)
 	assert.Equal(t, "Hi Eko", string(bytes))
+}
+
+//go:embed source/contoh.txt
+var contohFile []byte
+
+func TestFormUpload(t *testing.T) {
+	app.Post("/upload", func(c *fiber.Ctx) error {
+		file, err := c.FormFile("file")
+		if err != nil {
+			return err
+		}
+		err = c.SaveFile(file, "./target/"+file.Filename)
+		if err != nil {
+			return err
+		}
+		return c.SendString("Upload Success")
+	})
+	body := new(bytes.Buffer)
+	write := multipart.NewWriter(body)
+	file, err := write.CreateFormFile("file", "contoh.txt")
+	assert.Nil(t, err)
+
+	file.Write(contohFile)
+	write.Close()
+
+	request := httptest.NewRequest("POST", "/upload", body)
+	request.Header.Set("Content-Type", write.FormDataContentType())
+	response, err := app.Test(request)
+	assert.Nil(t, err)
+	assert.Equal(t, 200, response.StatusCode)
+
+	by, err := io.ReadAll(response.Body)
+	assert.Nil(t, err)
+	assert.Equal(t, "Upload Success", string(by))
 }
