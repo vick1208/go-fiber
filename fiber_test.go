@@ -16,13 +16,17 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/template/mustache/v2"
 )
+
+var engine = mustache.New("./template", ".mustache")
 
 var app = fiber.New(fiber.Config{
 	ErrorHandler: func(c *fiber.Ctx, err error) error {
 		c.Status(fiber.StatusInternalServerError)
 		return c.SendString("Error : " + err.Error())
 	},
+	Views: engine,
 })
 
 func TestRouteHelloWorld(t *testing.T) {
@@ -306,5 +310,26 @@ func TestErrorHandling(t *testing.T) {
 	bytes, err := io.ReadAll(response.Body)
 	assert.Nil(t, err)
 	assert.Equal(t, "Error : duar", string(bytes))
+
+}
+func TestView(t *testing.T) {
+	app.Get("/view", func(c *fiber.Ctx) error {
+		return c.Render("index", fiber.Map{
+			"title":   "Hello Title",
+			"header":  "Hello Header",
+			"content": "Hello Content",
+		})
+	})
+
+	request := httptest.NewRequest("GET", "/view", nil)
+	response, err := app.Test(request)
+	assert.Nil(t, err)
+	assert.Equal(t, 200, response.StatusCode)
+
+	bytes, err := io.ReadAll(response.Body)
+	assert.Nil(t, err)
+	assert.Contains(t, string(bytes), "Hello Title")
+	assert.Contains(t, string(bytes), "Hello Header")
+	assert.Contains(t, string(bytes), "Hello Content")
 
 }
