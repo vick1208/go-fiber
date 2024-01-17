@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -17,7 +18,12 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-var app = fiber.New()
+var app = fiber.New(fiber.Config{
+	ErrorHandler: func(c *fiber.Ctx, err error) error {
+		c.Status(fiber.StatusInternalServerError)
+		return c.SendString("Error : " + err.Error())
+	},
+})
 
 func TestRouteHelloWorld(t *testing.T) {
 	app.Get("/", func(c *fiber.Ctx) error {
@@ -285,5 +291,20 @@ func TestStatic(t *testing.T) {
 	bytes, err := io.ReadAll(response.Body)
 	assert.Nil(t, err)
 	assert.Equal(t, "this is sample text file for upload", string(bytes))
+
+}
+func TestErrorHandling(t *testing.T) {
+	app.Get("/err", func(c *fiber.Ctx) error {
+		return errors.New("duar")
+	})
+
+	request := httptest.NewRequest("GET", "/err", nil)
+	response, err := app.Test(request)
+	assert.Nil(t, err)
+	assert.Equal(t, 500, response.StatusCode)
+
+	bytes, err := io.ReadAll(response.Body)
+	assert.Nil(t, err)
+	assert.Equal(t, "Error : duar", string(bytes))
 
 }
