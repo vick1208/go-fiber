@@ -333,3 +333,13 @@ func TestView(t *testing.T) {
 	assert.Contains(t, string(bytes), "Hello Content")
 
 }
+func TestClientReq(t *testing.T) {
+	client := fiber.AcquireClient()
+	defer fiber.ReleaseClient(client)
+
+	agent := client.Get("https://example.com/")
+	stat, res, errors := agent.String()
+	assert.Nil(t, errors)
+	assert.Equal(t, 200, stat)
+	assert.Contains(t, res, "Example Domain")
+}
